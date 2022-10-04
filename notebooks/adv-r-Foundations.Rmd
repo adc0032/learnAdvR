@@ -1,0 +1,149 @@
+---
+title: "Foundations from Advanced R by Hadley Wickham"
+author: "Amanda D. Clark"
+output: html_notebook
+
+---
+
+# Intro
+"The goal is to improve my R programming skills, I will delve deeper into the magic behind the R tools (packages, functions, etc.) that I used frequently. I hope to build a better sense of developing user-friendly programming using best practices (FAIR).
+
+This notebook contains logic, examples, and quiz answers from the "Foundations" section of (Advanced R by Hadley Wickham)[https://adv-r.hadley.nz/index.html]. 
+
+
+## Names and values
+
+What is the distinction between objects and their names in R? Knowing this information will help make decisions about how to write faster code by avoiding unnecessary/accidental copies and memory usage. When will R copy an object? This means knowing the distinction between names and values.
+
+### Pre-Quiz
+
+```{r}
+##1
+df <- data.frame(runif(3), runif(3))
+names(df) <- c(1, 2)
+
+df <- df %>% mutate('3' = sum(df$'1', df$'2'))
+
+##2 
+
+x <- runif(1e6)
+y <- list(x, x, x) #24MB
+
+
+##3
+a <- c(1, 5, 3, 2)
+b <- a # copied here
+b[[1]] <- 10
+```
+
+Okay, so that pre-quiz wasn't that easy. ##1 I'm sure that my third column is not correct in the context of being a sum across 1 & 2 for 3. Also the fact that the column names are numbers is a real bummer, because they have to be '' quoted to be interpreted correctly. 
+The answers to the other questions are as commented in the code block. 
+
+
+### Binding basics
+
+Consider:
+
+```{r}
+x <- c(1,2,3)
+```
+
+Inaccurate pseudocode: "create an object named x, containing the values 1,2,3"
+Accurate pseudocode: "creating an object, specifically a vector of values [c(1,2,3)] and binding that object to a name [x]
+
+This means the name is a reference value. Say if we said:
+
+```{r}
+y <- x 
+```
+
+Here we aren't making another copy of the values, you are making another binding to those values. This means my answer in ##3 is incorrect when it asked which line it was copying on... 
+What really happened was 'b' is a new binding to the values that 'a' was bound to first. 
+
+Outside of bindings, objects have addresses, or where they are in memory, called an identifier. You can check an object's identifier with `lobstr::obj_addr()`
+Let's use this function to determine if x and y are bound to the same identifier:
+
+```{r}
+obj_addr(x)
+obj_addr(y)
+```
+
+Prior to running the previous code block, x & y had different identifiers. After running the code block, they became the same.
+Once I restart and rerun, the object identifier will be different. 
+
+#### Non-syntactic names
+
+R has established rules for what is considered a valid name. A syntactic name has letters, digits, `.`, and `_`, but it cannot start with `_` or digits. You also should not be using reserved words like function or TRUE or NULL (use `?Reserved` to see full list). These would all be considered nonsyntactic names, and will produce errors:
+
+```{r}
+_adc <- 1
+
+if <- 10
+```
+
+If you really want to use them, you can override the rules with backticks or quotes*...but you really shouldn't do this. Unfortunately, that won't stop other people who may do this, so you should know how to handle it:
+
+```{r}
+`_abc` <- 1
+`_abc`
+
+"_abc" <- 1
+
+
+```
+* the caveat with assigning with quotes is that you have to retrieve the bound value using a different syntax. 
+
+#### Exercises
+
+1. Explain the relationship between a, b, c and d in the following code:
+
+```{r}
+a <- 1:10
+b <- a
+c <- b
+d <- 1:10
+```
+
+a and d are copies of one another. 
+b and c are different bindings to the same object that a is bound to. 
+
+2. The following code accesses the mean function in multiple ways. Do they all point to the same underlying function object? Verify this with `lobstr::obj_addr()`.
+
+```{r}
+mean
+base::mean
+get("mean")
+evalq(mean)
+match.fun("mean")
+```
+
+I'm gonna say yes, because they all share the same bytecode? After verification with `lobstr` It is confirmed (but the bytecode did not match the id obtained from `lobstr`)! 
+
+3. By default, base R data import functions, like read.csv(), will automatically convert non-syntactic names to syntactic ones. Why might this be problematic? What option allows you to suppress this behaviour?
+
+This may be problematic because we might get overlapping names? could you silence an option? After using `?read.csv` you can set `check.names` to `FALSE`! It is changed by make.names and usually ensures that there are no duplicates so ignore what I said earlier. Maybe the issue would come in with reproducibility and having to update the code everytime because the renames might be different. 
+
+4. What rules does make.names() use to convert non-syntactic names into syntactic ones?
+
+"The character "X" is prepended if necessary. All invalid characters are translated to ".". A missing value is translated to "NA". Names which match `R` keywords have a dot appended to them. Duplicated values are altered by `make.unique`."
+
+5. I slightly simplified the rules that govern syntactic names. Why is .123e1 not a syntactic name? Read ?make.names for the full details.
+
+It's not syntactic because there is a number following the `.` and not a letter. 
+
+### Copy-on-modify
+
+Consider the following code:
+
+```{r}
+x <- c(1, 2, 3)
+y <- x
+
+y[[3]] <- 4
+x
+#> [1] 1 2 3
+```
+
+Here we are binding x and y to the same value, but then we modify y. This modification doesn't effect x though, which means these are no longer bound to the same object 
+
+
