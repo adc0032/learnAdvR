@@ -1,14 +1,14 @@
 ---
 title: "Foundations from Advanced R by Hadley Wickham"
-author: "Amanda D. Clark"
 output: html_notebook
+--- 
 
----
 
-# Intro
-"The goal is to improve my R programming skills, I will delve deeper into the magic behind the R tools (packages, functions, etc.) that I used frequently. I hope to build a better sense of developing user-friendly programming using best practices (FAIR).
+# Intro 
 
-This notebook contains logic, examples, and quiz answers from the "Foundations" section of (Advanced R by Hadley Wickham)[https://adv-r.hadley.nz/index.html]. 
+The goal is to improve my `R` programming skills, I will delve deeper into the magic behind the R tools (packages, functions, etc.) that I used frequently. I hope to build a better sense of developing user-friendly programming using best practices (FAIR).
+
+This notebook contains logic, examples, and quiz answers from the "Foundations" section of [Advanced R by Hadley Wickham](https://adv-r.hadley.nz/index.html). 
 
 
 ## Names and values
@@ -144,6 +144,82 @@ x
 #> [1] 1 2 3
 ```
 
-Here we are binding x and y to the same value, but then we modify y. This modification doesn't effect x though, which means these are no longer bound to the same object 
+Here we are binding x and y to the same value, but then we modify y. This modification doesn't effect x though, which means these are no longer bound to the same object and we have created a copy of the original values... so in the pre-quiz, the answer is actually the last line of the code. 
+
+it seems like r objects are technically immutable, but writer refrains due to prominent exceptions. 
+
+#### `tracemem()`
+
+You can track when an object gets copied using `tracemem()`: 
+
+```{r}
+x <- c(1, 2, 3)
+cat(tracemem(x), "\n")
+```
+
+So now I should be able to run the following two lines and see when `x` gets copied. It shouldn't happen from running the second line, but `tracemem()` should show me that a copy was made when I run the second line: 
+
+```{r}
+y <- x #`tracemem()` did nothing when I ran this line alone
+y[[3]] <- 4L #`tracemem()` responded to this line 
+
+```
+Sweet. I expect that if I modify y again, `tracemem()` will not respond because I am editing a different object with only 1 binding and not making a copy in any way. I also expect that it will have the object identifier that is on the right of the arrow from the previous output. 
+
+```{r}
+y[[3]] <- 5L
+
+untracemem(x)
+```
+
+Okay so `tracemem()` still responded, and I'm not sure why... {revisit}
+Turn off tracing with the second line in the chunk above!
+
+#### Function calls
+
+This copy-on-modify extends in functions as well. Consider this code:
+
+```{r}
+f <- function(a) {
+  a
+}
+
+x <- c(1, 2, 3)
+cat(tracemem(x), "\n")
 
 
+z <- f(x)
+cat(tracemem(z), "\n")
+
+untracemem(x)
+untracemem(z)
+```
+
+We have a function that takes something and does not modify it at all. If we put x in this function, we can expect that x and z (the name bound to the output of the value f(x)) are bound to the same thing (this binding is because a from the function is bound as well). If we were to modify x in the function, a copy would need to be created and z would be bound to a different copy of the original object. 
+
+I added a second `cat(tracemem(), "\n")` argument for z to compare what happens to the id when the function makes modifications and when it doesn't. as you can imagine, the IDs were identical when the function did not modify the input. 
+
+#### Lists
+
+We can expect this behavior from lists as well (because elements of a list point to values), but there are some nuances:
+
+```{r}
+l1 <- list(1,2,3)
+```
+
+Here instead of storing the values, lists store references to those values (index?). l1 binds to the list object, but elements in the list object are stored references to the actual values? Let's make a copy and a modification to see ow things change with `lobstr::ref()`
+
+```{r}
+l2 <- l1
+ref(l1, l2)
+```
+We see here that everything between the lists are shared. This is again because l1 & l2 are bound to the same list at the moment. What happens after modification?
+
+```{r}
+l2[[3]] <- 4
+ref(l1, l2)
+```
+
+This time we get two trees and the list itself as well as the third index have different memory addresses now. Note that index 1 & 2 are shown a second time but with less information and are a different color. Lists undergo "shallow" copying, meaning the object and bindings are copied over, but the values being pointed to are not. These images were helpful in understanding this:
+[Pre copy-on-modify](https://d33wubrfki0l68.cloudfront.net/52bc0e3da3382cba957a9d83397b6c9200906ce2/c72aa/diagrams/name-value/l-modify-1.png)
+[Post copy-on-modify](https://d33wubrfki0l68.cloudfront.net/b844bb5a3443e1344299627f5760e2ae3a9885b5/e1c76/diagrams/name-value/l-modify-2.png)
